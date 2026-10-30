@@ -23,6 +23,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Increase ODOCH logo size by 100%
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("index.html")
+          s = p.read_text(encoding="utf-8")
+          s = s.replace('.brandlink img{height:46px;width:auto;display:block}', '.brandlink img{height:92px;width:auto;display:block}')
+          s = s.replace('.brandlink img{height:52px}', '.brandlink img{height:104px}')
+          p.write_text(s, encoding="utf-8")
+          PY
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
