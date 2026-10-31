@@ -46,13 +46,19 @@ jobs:
           test -n "$ID"
           echo "id=$ID" >> "$GITHUB_OUTPUT"
 
-      - name: Download Pages artifact
+      - name: Download and extract Pages artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           rm -rf site
           mkdir -p site
           gh run download "${{ steps.pages_run.outputs.id }}" --repo "${{ github.repository }}" --name github-pages --dir site
+          TAR=$(find site -type f -name '*.tar' -print -quit)
+          test -n "$TAR"
+          mkdir -p extracted
+          tar -xf "$TAR" -C extracted
+          rm -rf site
+          mv extracted site
           INDEX=$(find site -type f -name index.html -print -quit)
           test -n "$INDEX"
           ROOT=$(dirname "$INDEX")
