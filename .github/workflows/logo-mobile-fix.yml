@@ -50,15 +50,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          rm -rf site
           mkdir -p site
           gh run download "${{ steps.pages_run.outputs.id }}" --repo "${{ github.repository }}" --name github-pages --dir site
+          INDEX=$(find site -type f -name index.html -print -quit)
+          test -n "$INDEX"
+          ROOT=$(dirname "$INDEX")
+          echo "SITE_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Pages site root: $ROOT"
 
       - name: Correct logo dimensions and mobile rendering
         run: |
           python - <<'PY'
           from pathlib import Path
+          import os
 
-          p = Path('site/index.html')
+          root = Path(os.environ['SITE_ROOT'])
+          p = root / 'index.html'
           s = p.read_text(encoding='utf-8')
 
           s = s.replace('.brandlink img{height:92px;width:auto;display:block}', '.brandlink img{height:46px;width:auto;display:block}')
@@ -79,14 +87,14 @@ jobs:
 
       - name: Verify final logo CSS
         run: |
-          grep -q 'Final ODOCH logo rendering fix' site/index.html
-          grep -q 'height:46px' site/index.html
-          grep -q 'height:52px' site/index.html
+          grep -q 'Final ODOCH logo rendering fix' "$SITE_ROOT/index.html"
+          grep -q 'height:46px' "$SITE_ROOT/index.html"
+          grep -q 'height:52px' "$SITE_ROOT/index.html"
 
       - name: Upload corrected Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: ${{ env.SITE_ROOT }}
 
       - name: Deploy corrected Pages artifact
         id: deployment
