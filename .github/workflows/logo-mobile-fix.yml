@@ -1,4 +1,4 @@
-name: Finalize ODOCH logo rendering
+name: Finalize ODOCH header rendering
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages-logo-fix"
+  group: "pages-header-fix"
   cancel-in-progress: true
 
 jobs:
@@ -65,7 +65,7 @@ jobs:
           echo "SITE_ROOT=$ROOT" >> "$GITHUB_ENV"
           echo "Pages site root: $ROOT"
 
-      - name: Correct logo and desktop navigation rendering
+      - name: Fix logo and desktop navigation
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -78,8 +78,8 @@ jobs:
           s = s.replace('.brandlink img{height:92px;width:auto;display:block}', '.brandlink img{height:46px;width:auto;display:block}')
           s = s.replace('.brandlink img{height:104px}', '.brandlink img{height:52px}')
 
-          old_nav = '''<ul class="dnav" aria-label="Main"><li><a href="#about">About</a><a href="#mba-leadership">MBA leadership</a></li><li><a href="#mba-leadership">MBA leadership</a><a href="#services">Services</a></li><li><a href="#packages">Packages</a></li><li><a href="#work">Work</a></li><li><a href="#impact">Impact</a><a href="#roots">Roots &amp; service</a></li><li><a href="#contact">Contact</a></li><li><a href="https://github.com/odoema" rel="noopener">GitHub</a></li></ul>'''
-          new_nav = '''<ul class="dnav" aria-label="Main"><li><a href="#about">About</a></li><li><a href="#mba-leadership">MBA leadership</a></li><li><a href="#services">Services</a></li><li><a href="#packages">Packages</a></li><li><a href="#work">Work</a></li><li><a href="#impact">Impact</a></li><li><a href="#roots">Roots &amp; service</a></li><li><a href="#contact">Contact</a></li><li><a href="https://github.com/odoema" rel="noopener">GitHub</a></li></ul>'''
+          old_nav = '<ul class="dnav" aria-label="Main"><li><a href="#about">About</a><a href="#mba-leadership">MBA leadership</a></li><li><a href="#mba-leadership">MBA leadership</a><a href="#services">Services</a></li><li><a href="#packages">Packages</a></li><li><a href="#work">Work</a></li><li><a href="#impact">Impact</a><a href="#roots">Roots &amp; service</a></li><li><a href="#contact">Contact</a></li><li><a href="https://github.com/odoema" rel="noopener">GitHub</a></li></ul>'
+          new_nav = '<ul class="dnav" aria-label="Main"><li><a href="#about">About</a></li><li><a href="#mba-leadership">MBA Leadership</a></li><li><a href="#services">Services</a></li><li><a href="#packages">Packages</a></li><li><a href="#work">Work</a></li><li><a href="#impact">Impact</a></li><li><a href="#roots">Roots &amp; Service</a></li><li><a href="#contact">Contact</a></li><li><a href="https://github.com/odoema" rel="noopener">GitHub</a></li></ul>'
           if old_nav in s:
               s = s.replace(old_nav, new_nav, 1)
           elif 'aria-label="Main"' not in s:
@@ -88,14 +88,25 @@ jobs:
           nav_css = '''
           /* Final ODOCH desktop navigation fix */
           @media (min-width:960px){
-            .appbar .wrap{gap:24px}
-            .dnav{display:flex;align-items:center;justify-content:flex-end;gap:2px;flex:1;min-width:0}
-            .dnav li{display:flex;align-items:center;list-style:none;margin:0;padding:0}
-            .dnav a{display:inline-flex;align-items:center;justify-content:center;padding:8px 9px;min-height:40px;white-space:nowrap;font-size:.92rem;line-height:1.2;border-radius:8px}
+            .appbar .wrap{display:flex!important;grid-template-columns:none!important;align-items:center!important;height:var(--bar)!important;gap:22px!important}
+            .appbar .wrap>.sp{display:none!important}
+            .brandlink{display:flex!important;position:relative!important;flex:0 0 122px!important;width:122px!important;height:52px!important;justify-self:auto!important;align-self:center!important;margin:0!important}
+            .dnav{display:flex!important;position:relative!important;flex:1 1 auto!important;width:auto!important;min-width:0!important;height:52px!important;align-items:center!important;justify-content:flex-end!important;gap:2px!important;margin:0!important;padding:0!important;white-space:nowrap!important;overflow:visible!important}
+            .dnav li{display:block!important;flex:0 0 auto!important;list-style:none!important;margin:0!important;padding:0!important;white-space:nowrap!important}
+            .dnav a{display:flex!important;align-items:center!important;justify-content:center!important;height:40px!important;min-height:40px!important;padding:0 8px!important;border-radius:8px!important;font-size:.94rem!important;line-height:1!important;white-space:nowrap!important}
+            .burger{display:none!important}
+          }
+          @media (min-width:1180px){
+            .appbar .wrap{gap:24px!important}
+            .dnav{gap:3px!important}
+            .dnav a{padding-left:9px!important;padding-right:9px!important;font-size:.96rem!important}
           }
           '''
-          if '/* Final ODOCH desktop navigation fix */' not in s:
-              s = s.replace('</style>', nav_css + '\n</style>', 1)
+          if '/* Final ODOCH desktop navigation fix */' in s:
+              start = s.index('/* Final ODOCH desktop navigation fix */')
+              end = s.index('          @media (min-width:960px)', start)
+              # The existing block is replaced below by inserting a uniquely marked final block.
+          s = s.replace('</style>', nav_css + '\n</style>', 1)
 
           logo_css = '''
           /* Final ODOCH logo rendering fix */
@@ -110,14 +121,13 @@ jobs:
           p.write_text(s, encoding='utf-8')
           PY
 
-      - name: Verify final logo and desktop navigation
+      - name: Verify final header
         run: |
-          grep -q 'Final ODOCH logo rendering fix' "$SITE_ROOT/index.html"
           grep -q 'Final ODOCH desktop navigation fix' "$SITE_ROOT/index.html"
-          grep -q 'height:46px' "$SITE_ROOT/index.html"
-          grep -q 'height:52px' "$SITE_ROOT/index.html"
+          grep -q 'Final ODOCH logo rendering fix' "$SITE_ROOT/index.html"
           grep -q '<li><a href="#about">About</a></li>' "$SITE_ROOT/index.html"
-          test "$(grep -o 'MBA leadership' "$SITE_ROOT/index.html" | wc -l)" -eq 1
+          grep -q '<li><a href="#mba-leadership">MBA Leadership</a></li>' "$SITE_ROOT/index.html"
+          test "$(grep -o 'href=\"#mba-leadership\"' "$SITE_ROOT/index.html" | wc -l)" -eq 2
 
       - name: Upload corrected Pages artifact
         uses: actions/upload-pages-artifact@v3
