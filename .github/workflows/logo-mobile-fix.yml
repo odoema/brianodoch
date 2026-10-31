@@ -1,0 +1,73 @@
+name: Finalize ODOCH logo rendering
+
+on:
+  workflow_run:
+    workflows: ["Deploy ODOCH website to GitHub Pages"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+tconcurrency:
+  group: "pages-logo-fix"
+  cancel-in-progress: true
+
+jobs:
+  fix-and-deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: site
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Correct logo dimensions and mobile rendering
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('site/index.html')
+          s = p.read_text(encoding='utf-8')
+
+          # The production build previously enlarged the logo to 92/104px.
+          # Restore the source proportions and keep the logo stable in the mobile app bar.
+          s = s.replace('.brandlink img{height:92px;width:auto;display:block}', '.brandlink img{height:46px;width:auto;display:block}')
+          s = s.replace('.brandlink img{height:104px}', '.brandlink img{height:52px}')
+
+          logo_css = '''
+          /* Final ODOCH logo rendering fix */
+          .brandlink{width:108px;height:46px;min-width:108px;min-height:46px;flex:0 0 108px;overflow:hidden;display:flex;align-items:center;justify-content:center;line-height:0;transform:translateZ(0)}
+          .brandlink img{display:block;width:108px;height:46px;max-width:none;flex:0 0 108px;object-fit:contain;object-position:center;aspect-ratio:108/46}
+          @media (min-width:960px){.brandlink{width:122px;height:52px;min-width:122px;min-height:52px;flex-basis:122px}.brandlink img{width:122px;height:52px;flex-basis:122px}}
+          @media (prefers-reduced-motion:reduce){.brandlink,.brandlink img{transition:none!important}}
+          '''
+          if '/* Final ODOCH logo rendering fix */' not in s:
+              s = s.replace('</style>', logo_css + '\n</style>', 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Verify final logo CSS
+        run: |
+          grep -q 'Final ODOCH logo rendering fix' site/index.html
+          grep -q 'height:46px' site/index.html
+          grep -q 'height:52px' site/index.html
+
+      - name: Upload corrected Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy corrected Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
